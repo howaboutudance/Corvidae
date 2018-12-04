@@ -1,0 +1,41 @@
+[instance]
+name="Untitled"
+admins = []
+host="localhost:5000"
+
+[relays]
+upstream_source="http://example.com/relays/relays.txt"
+
+[[relays.upstream]]
+name="upstream.example.com"
+
+#
+# Ignored instances
+#
+
+# Drop: Never accept status updates from these instances
+[[relays.ignore]]
+name="dropped-example.net"
+type="drop"
+reason="example dropped domain"
+
+
+# media-ignore: Ignore all attachments from these instances
+[[relays.ignore]]
+name="media-ignore.example.net"
+type="media"
+reason="Media violates rules"
+
+# no-proxy: Only hotlink to media from these instances
+[[relays.ignore]]
+name="no-proxy.example.net"
+type="no-proxy"
+reason="Blocked in hosted country"
+
+# Quiet: Only accept messages where the to: field contains a known handle
+# this state also implies a media ignore (All media requests will be direct)
+[[relays.ignore]]
+name="quiet.example.net"
+type="quiet"
+reason="example quiet domain"
+

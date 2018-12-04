@@ -1,0 +1,14 @@
+activipy==0.1
+Flask==1.0.2
+Flask-Bcrypt==0.7.1
+Flask-Cache==0.13.1
+Flask-Cors==3.0.6
+Flask-Login==0.4.1
+Flask-Markdown==0.3
+Flask-Principal==0.4.0
+Flask-SQLAlchemy
+Flask-Migrate
+imagesize==1.1.0
+Markdown==3.0.1
+MarkupSafe==1.0
+base36
