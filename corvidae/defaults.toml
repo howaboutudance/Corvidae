@@ -1,40 +1,59 @@
 [instance]
 name="Untitled"
 admins = []
-host="localhost:5000"
+# This is the URL prefix which will be used on all external URIs. It must resolve externally. 
+base_url = "http://localhost:5000/"
 
-[relays]
-upstream_source="http://example.com/relays/relays.txt"
 
-[[relays.upstream]]
-name="upstream.example.com"
+[cache]
+
+# Caches
+# Caches set to 0 will be ignored (Cache should never expire)
+
+never_cache = ''
+
+# Media should be proxied for 2 days (48 hours)
+proxy_media = 172800
+# External user metadata should be cached for 7 days
+external_users = 604800
+# external data (anything that has an IRI not beginning with our base URI)
+# should be kept for some long period of time (30 days) 
+external_data = 2592000
+
+
+# this will be re-loaded every time the app is loaded. 
+[federation]
+relay_list="http://example.com/relays/relays.txt"
+
+# This is an explicit relay 
+fixed_relays= ["https://upstream.example.com/" ]
 
 #
 # Ignored instances
 #
 
 # Drop: Never accept status updates from these instances
-[[relays.ignore]]
+[[federation.ignore]]
 name="dropped-example.net"
 type="drop"
 reason="example dropped domain"
 
 
 # media-ignore: Ignore all attachments from these instances
-[[relays.ignore]]
+[[federation.ignore]]
 name="media-ignore.example.net"
 type="media"
 reason="Media violates rules"
 
 # no-proxy: Only hotlink to media from these instances
-[[relays.ignore]]
+[[federation.ignore]]
 name="no-proxy.example.net"
 type="no-proxy"
 reason="Blocked in hosted country"
 
 # Quiet: Only accept messages where the to: field contains a known handle
 # this state also implies a media ignore (All media requests will be direct)
-[[relays.ignore]]
+[[federation.ignore]]
 name="quiet.example.net"
 type="quiet"
 reason="example quiet domain"

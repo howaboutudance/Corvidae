@@ -1,65 +1,57 @@
-from .shelfmanager import ShelfManager
-from .. import app
-from activipy import vocab as ASVocab
+from corvidae import app,db
+from flask import url_for
+import base36
 
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
-class OutboxManager(ShelfManager):
-    def __init__(self, app):
-        super().__init__(app, "outboxes")
-    def get(self, id):
-        # Check that the id matches a handle.
-        handle = handle_manager.get_handle(id)
-        if(handle == None):
-            # No user or handle of that name exists.
-            # Return None
-            return None
-        else:
-            # See if it exists.
-            outbox = self.shelf.get(handle.name)
-            return outbox
-    def add_object(self, obj:ASVocab.Object ):
-        # obj is going to be a complete ASObject
-        # We need to denormalize it and find the appropriate place to put things.
-        
-        
+from sqlalchemy_json import MutableJson, NestedMutableList
 
-        pass
+class Content(db.Model):
+    """
+    Content is the overarching "Type" within the timeline. Content is what constitutes a user's "timeline"
 
-    @app.route("/oubox/<handle>")
-    def render_outbox(handle):
-        # Turn the items into a 
-        pass
+    When a user follows someone, their outbox is copied into the user's timeline (well, references to it, at least)
+    When a user posts something, that content is placed into the user's timeline (and into the timelines of any followers)
+    When a user likes something, that like is placed into the user's timeline (and into the timeline of the owner of the post)
+    When a user reposts something, that repost reference is placed onto the user's timeline (and a notification is placed on the timeline of the user that posted the content, and quite possibly the user that reposted it previously,too)
+    """
 
-class InboxManager(ShelfManager):
-    def __init__(self, app):
-        super().__init__(app, "inboxes")
-    def get(self, id):
-        return None
+    __tablename__ = "content"
+    id = db.Column(db.Integer, primary_key=True)
+    published = db.Column(db.DateTime)
     
-    @app.route("/inbox/<handle>")
-    def render_inbox(handle):
-        return "[]"
+    # from is always a solid reference (a specific point in the fediverse)
+    actor = db.Column(db.Text)
+    # To: is going to be a list. This somtimes includes us (e.g. DMs, mentions) but sometimes
+    # is a vauge reference to __us__ (e.g. user/followers)
+    to = db.Column(MutableJson)
+    cc = db.Column(MutableJson)
 
+    # This is the handle that this box item belongs to. . 
+    handle_box = db.Column(db.Text, ForeignKey('handle.name'), nullable=False)
+    handle = relationship('Handle', back_populates='timeline', order_by="Content.published")
 
-class Box(object):
-    def __init__(self, handle, items=[]):
-        self.owner = handle
-        self.items = items
+    # this contains the URI of the Created, Announced, Liked or otherwise done-with object. 
+    content_uri = db.Column(db.Text)
+    # This should map 1:1 with ActivtyStream vocabulary, as seen in 
+    # https://www.w3.org/TR/activitystreams-vocabulary/#activity-types
+    # (though, we only support [create, announce, follow, like, flag])
+    content_type = db.Column(db.Enum("Create","Announce","Like","Flag","Follow"))
+
+    @property
+    def id_url(self):
+        return app.config["instance"]["base_url"] + "/status/"+self.base36_id
+
+    @property
+    def base36_id(self):
+        """
+        Base36 is used for external content. 
+        """
+        return base36.dumps(self.id)
     
-    def get_owner_handle(self):
-        return handle_manager.get_handle(self.owner)
-    def get_owner_account(self):
-        return handle_manager.get_owner_account(self.get_owner_handle)
-    def get_items(self, max=None, offset=0, filter=lambda x:x):
-        
-        ret = []
-        if(max == None): 
-            max = len(self.items)
-        id_index = offset
-        max_idx = min(len(self.items), offset + max)
-        while( len(ret) < max and id_index <= max_idx ):
-            tmp_obj = object_manager.get(self.items[id_index])
-            if(tmp_obj != None and filter(tmp_obj)):
-                ret.append(tmp_obj)
-            id_index += 1
-        return ret
+    def from_base36(b36_id):
+        un_base36 = base36.loads(b36_id)
+        return Status.query.filter(Status.id == un_base36).one_or_None()
+
+
