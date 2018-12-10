@@ -37,9 +37,16 @@ else:
        app.config['SQLALCHEMY_DATABASE_URI'] = app. config['DATABASE_URI']
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{instance_path}/corvidae.db"
+    # Shut up already.
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Now we can initialize the DB. 
 db  = SQLAlchemy(app)
+from flask_migrate import Migrate
+migrate = Migrate(app, db)
+# make sure we have some things woken up for Bcrypt
+from flask_bcrypt import Bcrypt
+bcrypt = Bcrypt(app)
 
 import corvidae.models
 
@@ -62,10 +69,9 @@ def home():
     if(current_user.is_authenticated):
         return card_home()
     else:
-        return render_template('index-anon.html', instance={})
+        return render_template('index-anon.html', instance=app.config['instance'])
 
 from flaskext.markdown import Markdown
-
 Markdown(app)
 
 @app.route('/about')
@@ -85,3 +91,5 @@ def card_home():
     )
 
 from . import auth
+
+import corvidae.cli.user

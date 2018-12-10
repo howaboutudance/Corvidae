@@ -1,9 +1,9 @@
-from . import app
+from . import app, db
 
 from flask import redirect, url_for, render_template, session, request
 from flask_login import LoginManager, login_required, login_user, logout_user
 
-from .models import user_manager
+from .models.user import User
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -11,7 +11,7 @@ login_manager.login_view = "login"
 
 @login_manager.user_loader
 def load_user(id):
-    tmp_user = user_manager.get(id)
+    tmp_user = User.query.filter(User.id==id)
     if(tmp_user is None):
         return None
     else:

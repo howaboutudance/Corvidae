@@ -12,3 +12,6 @@ imagesize==1.1.0
 Markdown==3.0.1
 MarkupSafe==1.0
 base36
+sqlalchemy-json
+pycryptodome
+

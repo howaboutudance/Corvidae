@@ -1,9 +1,9 @@
-from .shelfmanager import ShelfManager as ShelfManager
-from .. import app
+from .. import app, db
 from activipy import vocab as ASVocab
 
-from sqlalchemy import Column, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Text, Integer, ForeignKey
+from sqlalchemy.orm import relationship, validates
+from sqlalchemy_json import MutableJson
 
 class User(db.Model):
     """
@@ -11,32 +11,15 @@ class User(db.Model):
     """
 
     __tablename__='user'
-
-    username = Column(Text, primary_key=True, unique=True, index=True)
+    id       = Column(Integer, primary_key=True, unique=True)
     email = Column(Text, unique=True, nullable=False)
     password = Column(Text, unique=False, nullable=False)
-    db_flags = Column(Text)
+    db_flags = Column(MutableJson) # should enforce this as being an array.
     totp_key = Column(Text)
     handles = relationship('Handle',back_populates='owner')
 
-    @property(setter=set_flags)
-    def flags(self):
-        split_flags = map( lambda k: k.strip(),  self.db_flags.split(';') )
-        return set(split_flags)
-    def set_flags(self, flag_arr):
-        set_flags = set(flag_arr)
-        sel.db_flags = ';'.join(set_flags)
-
-    def set_flag(self, flag, state):
-        fl = self.flags
-        if state:
-            fl.add(flag)
-        else:
-            fl.remove(flag)
-        self.flags = fl
-    
     def get_id(self):
-        return self.username
+        return self.id
     
     # this is for flask-login
     @property
@@ -52,6 +35,7 @@ class User(db.Model):
     @property
     def is_authenticated(self):
         return True
+import re 
 
 class Handle(db.Model):
     __tablename__='handle'
@@ -59,6 +43,15 @@ class Handle(db.Model):
     # Name is some "@-name" -- bob, sally, etc. 
     # This is the "local part" of an acct: URI. 
     name = db.Column(db.Text,  unique=True, nullable=False)
+
+    @validates('name')
+    def check_name(self, key, name):
+        check_re = re.compile('[a-zA-Z0-9_-]')
+        if(not re.match(name)):
+            raise AssertionError()
+        else:
+            return name
+
     # This is the full acct: uri
     acct = db.Column(db.Text,  nullable=True, default="acct:")
     is_external = db.Column(db.Boolean, nullable=False, default=False)
@@ -71,7 +64,7 @@ class Handle(db.Model):
     # The display name of the handle
     display_name = db.Column(db.Text)
     # Who owns the handle (NULL if external)
-    owner_id = db.Column(db.Integer, ForeignKey('user.username'), nullable=True)
+    owner_id = db.Column(db.Integer, ForeignKey('user.id'), nullable=True)
     # owner User of the handle. This has no guarantees if the user itself is actually
     # associated with a local user. 
     owner = relationship('User', back_populates='handles')
@@ -89,12 +82,23 @@ class Handle(db.Model):
     # Auto Mutual will auto-accept the follow itself. 
     autoconfirm_mutual = db.Column(db.Boolean, default=False)
 
+    # This is for header signing. It contains sensitive data, just like the user TOTP. 
+    secret_key_b64 = db.Column(db.Text)
+
+    @property
+    def sk_bytes(self):
+        import base64
+        return base64.b64decode(self.secret_key_b64)
+    
+
+
+
 
 class FollowState(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     following_handle = db.Column(db.Integer, ForeignKey('handle.name'))
     follower = relationship('Handle', back_populates='following')
     # This is an IRI that should be looked at. 
-    followed = db.Column(db.Text, ForiegnKey('handle.name'))
-    following = relaitonship('Handle', back_populates='followed_by')
+    followed = db.Column(db.Text, ForeignKey('handle.name'))
+    following = relationship('Handle', back_populates='followed_by')
     approved = db.Column(db.Boolean)
